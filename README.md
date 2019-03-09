@@ -1,116 +1,180 @@
-# Pocket & Pinboard Stream Archive <img src="https://getpocket.com/favicon.ico" height="22px"/> <img src="https://pinboard.in/favicon.ico" height="22px"/> [![Twitter URL](https://img.shields.io/twitter/url/http/shields.io.svg?style=social)](https://twitter.com/thesquashSH)
+<div align="center">
+<img src="https://i.imgur.com/4nkFjdv.png" height="80px">
+<h1>ArchiveBox<br/><sub>The open-source self-hosted web archive.</sub></h1>
 
-(Your own personal Way-Back Machine)
+▶️ <a href="https://github.com/pirate/ArchiveBox/wiki/Quickstart">Quickstart</a> | 
+<a href="https://archive.sweeting.me">Demo</a> | 
+<a href="https://archivebox.io">Website</a> | 
+<a href="https://github.com/pirate/ArchiveBox">Github</a> | 
+<a href="https://github.com/pirate/ArchiveBox/wiki">Documentation</a> | 
+<a href="https://github.com/pirate/ArchiveBox/wiki/Troubleshooting">Troubleshooting</a> | 
+<a href="https://github.com/pirate/ArchiveBox/wiki/Changelog">Changelog</a> | 
+<a href="https://github.com/pirate/ArchiveBox/wiki/Roadmap">Roadmap</a>
 
-Save an archived copy of all websites you star using Pocket or Pinboard, indexed in an html file.  Powered by the new [headless](https://developers.google.com/web/updates/2017/04/headless-chrome) Google Chrome and good 'ol `wget`.
+<pre>
+"Your own personal internet archive" (网站存档 / 爬虫)
+</pre>
 
-![](screenshot.png)
+<a href="https://github.com/pirate/ArchiveBox">
+<img src="https://img.shields.io/badge/Open_source-free-green.svg?logo=git&logoColor=green"/>
+<img src="https://img.shields.io/github/last-commit/pirate/ArchiveBox.svg?logo=Sublime+Text&logoColor=green&label=Active"/>
+<img src="https://img.shields.io/badge/License-MIT-lightgreen.svg?logo=MakerBot&logoColor=lightgreen"/>
+<img src="https://img.shields.io/github/stars/pirate/ArchiveBox.svg?logo=github&label=Stars&logoColor=blue"/>
+<img src="https://img.shields.io/badge/Python-%3E%3D3.5-yellow.svg?logo=python&logoColor=yellow"/>
+<img src="https://img.shields.io/badge/Chromium-%3E%3D59-orange.svg?logo=Google+Chrome&logoColor=orange"/>
+<img src="https://img.shields.io/badge/Docker-all%20platforms-lightblue.svg?logo=docker&logoColor=lightblue"/>
+</a>
+<hr/>
+</div>
 
-## Quickstart
+**ArchiveBox takes a list of website URLs you want to archive, and creates a local, static, browsable HTML clone of the content from those websites (it saves HTML, JS, media files, PDFs, images and more).** 
 
-`archive.py` is a script that takes a [Pocket](https://getpocket.com/export) export, and turns it into a browsable html archive that you can store locally or host online.
+You can use it to preserve access to websites you care about by storing them locally offline.  ArchiveBox works by rendering the pages in a headless browser, then saving all the requests and fully loaded pages in multiple redundant common formats (HTML, PDF, PNG, WARC) that will last long after the original content dissapears off the internet.  It also automatically extracts assets like git repositories, audio, video, subtitles, images, and PDFs into separate files using `youtube-dl`, `pywb`, and `wget`.
 
-**Runtime:** I've found it takes about an hour to download 1000 articles, and they'll take up roughly 1GB.
-Those numbers are from running it single-threaded on my i5 machine with 50mbps down.  YMMV.
+ArchiveBox doesn't require a constantly running server or backend, instead you just run the `./archive` command each time you want to import new links and update the static output.  It can import and export JSON (among other formats), so it's easy to script or hook up to other APIs.  If you run it on a schedule and import from browser history or bookmarks regularly, you can sleep soundly knowing that the slice of the internet you care about will be automatically preserved in multiple, durable long-term formats that will be accessible for decades (or longer).
 
-**Dependencies:** `google-chrome --headless (59)`,` wget`, `python3`
+<div align="center"><sub>. . . . . . . . . . . . . . . . . . . . . . . . . . . .</sub></div><br/>
 
+
+To get started, you can install ArchiveBox [automatically](https://github.com/pirate/ArchiveBox/wiki/Quickstart), follow the [manual instructions](https://github.com/pirate/ArchiveBox/wiki/Install), or use [Docker](https://github.com/pirate/ArchiveBox/wiki/Docker).  
+There are only [3 main dependencies](https://github.com/pirate/ArchiveBox/wiki/Install#dependencies) beyond `python3`: `wget`, `chromium`, and `youtube-dl`, and you can skip installing them if you don't need those archive methods.
 ```bash
-# On Mac:
-brew install Caskroom/versions/google-chrome-canary wget python3
-echo -e "#!/bin/bash\n/Applications/Google\ Chrome\ Canary.app/Contents/MacOS/Google\ Chrome\ Canary \$@" > /usr/local/bin/google-chrome
-chmod +x /usr/local/bin/google-chrome
-# On Linux:
-wget -q -O - https://dl-ssl.google.com/linux/linux_signing_key.pub | sudo apt-key add -
-sudo sh -c 'echo "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main" >> /etc/apt/sources.list.d/google-chrome.list'
-apt update; apt install google-chrome-beta python3 wget
-# Check:
-google-chrome --version && which wget && which python3 && echo "[√] All dependencies installed."
+git clone https://github.com/pirate/ArchiveBox.git
+cd ArchiveBox
+./setup
+
+# Export your bookmarks, then run the archive command to start archiving!
+./archive ~/Downloads/bookmarks.html
+
+# Or pass in links to archive via stdin
+echo 'https://example.com' | ./archive
 ```
 
-**Archiving:**
+Open `output/index.html` in a browser to view your archive.  [DEMO: archive.sweeting.me](https://archive.sweeting.me)  
+For more information, see the [Quickstart](https://github.com/pirate/ArchiveBox/wiki/Quickstart), [Usage](https://github.com/pirate/ArchiveBox/wiki/Usage), and [Configuration](https://github.com/pirate/ArchiveBox/wiki/Configuration) docs.
 
-1. Download your pocket export file `ril_export.html` from https://getpocket.com/export
-2. Download this repo `git clone https://github.com/pirate/pocket-archive-stream`
-3. `cd pocket-archive-stream/`
-4. `./archive.py ~/Downloads/ril_export.html [pinboard|pocket]`
+## Overview
 
-It produces a folder `pocket/` containing an `index.html`, and archived copies of all the sites,
-organized by timestamp.  For each sites it saves:
+Because modern websites are complicated and often rely on dynamic content, 
+ArchiveBox archives the sites in **several different formats** beyond what public 
+archiving services like Archive.org and Archive.is are capable of saving.
 
- - wget of site, e.g. `en.wikipedia.org/wiki/Example.html` with .html appended if not present
- - `sreenshot.png` 1440x900 screenshot of site using headless chrome
+ArchiveBox imports a list of URLs from stdin, remote url, or file, then adds the pages to a local archive folder using wget to create a browsable html clone, youtube-dl to extract media, and a full instance of Chrome headless for PDF, Screenshot, and DOM dumps, and more...
+
+Using multiple methods and the market-dominant browser to execute JS ensures we can save even the most complex, finicky websites in at least a few high-quality, long-term data formats.
+
+### Can import links from:
+
+ - <img src="https://getpocket.com/favicon.ico" height="22px"/> Pocket, Pinboard, Instapaper
+ - <img src="https://nicksweeting.com/images/rss.svg" height="22px"/> RSS, XML, JSON, HTML, Markdown, or plain text lists
+ - <img src="https://nicksweeting.com/images/bookmarks.png" height="22px"/> Browser history or bookmarks (Chrome, Firefox, Safari, IE, Opera, and more)
+ - *Shaarli, Delicious, Reddit Saved Posts, Wallabag, Unmark.it, and any other text with links in it!*
+
+### Can save these things for each site:
+
+ - `favicon.ico` favicon of the site
+ - `example.com/page-name.html` wget clone of the site, with .html appended if not present
  - `output.pdf` Printed PDF of site using headless chrome
+ - `screenshot.png` 1440x900 screenshot of site using headless chrome
+ - `output.html` DOM Dump of the HTML after rendering using headless chrome
+ - `archive.org.txt` A link to the saved site on archive.org
+ - `warc/` for the html + gzipped warc file <timestamp>.gz
+ - `media/` any mp4, mp3, subtitles, and metadata found using youtube-dl
+ - `git/` clone of any repository for github, bitbucket, or gitlab links
+ - `index.html` & `index.json` HTML and JSON index files containing metadata and details
 
-You can tweak parameters like screenshot size, file paths, timeouts, etc. in `archive.py`.
-You can also tweak the outputted html index in `index_template.html`.  It just uses python
-format strings (not a proper templating engine like jinja2), which is why the CSS is double-bracketed `{{...}}`.
+By default it does everything, but can disable or tweak [individual options](https://github.com/pirate/ArchiveBox/wiki/Configuration) via environment variables or config file.
 
-**Live Updating:** (coming soon)
+The archiving is additive, so you can schedule `./archive` to [run regularly](https://github.com/pirate/ArchiveBox/wiki/Scheduled-Archiving) and pull new links into the index.
+All the saved content is static and indexed with JSON files, so it lives forever & is easily parseable, it requires no always-running backend.
 
-It's possible to pull links via the pocket API instead of downloading an html export.
-Once I write a script to do that, we can stick this in `cron` and have it auto-update on it's own.
+### Related Projects
 
-For now you just have to download `ril_export.html` and run `archive.py` each time it updates. The script
-will run fast subsequent times because it only downloads new links that haven't been archived already.
+There are tons of great web archiving tools out there.  In particular https://webrecorder.io ([pywb](https://github.com/webrecorder/pywb)) and https://getpolarized.io/ are robust, stable pieces of software that have lots of overlap with ArchiveBox.  ArchiveBox differentiates itself by being primarily a one-shot CLI tool that specializing in importing streams of links from RSS, JSON (good for automatically archiving from a stream of browser history or bookmarks on a schedule), as opposed to a desktop application or web service that requires human interaction to add links.
 
-## Publishing Your Archive
+To learn more about the motivation for this project and how it fits into the broader community, see our [Web Archiving Community](https://github.com/pirate/ArchiveBox/wiki/Web-Archiving-Community) wiki page.
 
-The archive is suitable for serving on your personal server, you can upload the
-archive to `/var/www/pocket` (or pinboard) and allow people to access your saved copies of sites.
+# Documentation
 
 
-Just stick this in your nginx config to properly serve the wget-archived sites:
+<div align="center">
+<img src="https://i.imgur.com/PVO88AZ.png"/>
+<br/>
+    <sub><i>(Recently <a href="https://github.com/pirate/ArchiveBox/issues/108">renamed</a> from <code>Bookmark Archiver</code>)</i></sub>
+</div>
 
-```nginx
-location /pocket/ {
-    alias       /var/www/pocket/;
-    index       index.html;
-    autoindex   on;
-    try_files   $uri $uri/ $uri.html =404;
-}
-```
+---
 
-Make sure you're not running any content as CGI or PHP, you only want to serve static files!
+We use the [Github wiki system](https://github.com/pirate/ArchiveBox/wiki) for documentation.
 
-Urls look like: `https://sweeting.me/pocket/archive/1493350273/en.wikipedia.org/wiki/Dining_philosophers_problem`
+You can also access the docs locally by looking in the [`ArchiveBox/docs/`](https://github.com/pirate/ArchiveBox/wiki/Home) folder.
 
-## Info
+# Getting Started
 
-This is basically an open-source version of [Pocket Premium](https://getpocket.com/premium) (which you should consider paying for!).
-I got tired of sites I saved going offline or changing their URLS, so I started
-archiving a copy of them locally now, similar to The Way-Back Machine provided
-by [archive.org](https://archive.org).  Self hosting your own archive allows you to save
-PDFs & Screenshots of dynamic sites in addition to static html, something archive.org doesn't do.
+ - [Home](https://github.com/pirate/ArchiveBox/wiki/Home)
+ - [Quickstart](https://github.com/pirate/ArchiveBox/wiki/Quickstart)
+ - [Install](https://github.com/pirate/ArchiveBox/wiki/Install)
+ - [Docker](https://github.com/pirate/ArchiveBox/wiki/Docker)
 
-Now I can rest soundly knowing important articles and resources I like wont dissapear off the internet.
+# Documentation
 
-My published archive as an example: [sweeting.me/pocket](https://home.sweeting.me/pocket).
+ - [Usage](https://github.com/pirate/ArchiveBox/wiki/Usage)
+ - [Configuration](https://github.com/pirate/ArchiveBox/wiki/Configuration)
+ - [Supported Sources](https://github.com/pirate/ArchiveBox/wiki/Quickstart#2-get-your-list-of-urls-to-archive)
+ - [Supported Outputs](https://github.com/pirate/ArchiveBox/wiki#can-save-these-things-for-each-site)
+ - [Scheduled Archiving](https://github.com/pirate/ArchiveBox/wiki/Scheduled-Archiving)
+ - [Publishing Your Archive](https://github.com/pirate/ArchiveBox/wiki/Publishing-Your-Archive)
+ - [Chromium Install](https://github.com/pirate/ArchiveBox/wiki/Install-Chromium)
+ - [Troubleshooting](https://github.com/pirate/ArchiveBox/wiki/Troubleshooting)
 
-## Security WARNING
+# More Info
 
-Hosting other people's site content has security implications for your domain, make sure you understand
-the dangers of hosting other people's CSS & JS files [on your domain](https://developer.mozilla.org/en-US/docs/Web/Security/Same-origin_policy).  It's best to put this on a domain
-of its own to slightly mitigate [CSRF attacks](https://en.wikipedia.org/wiki/Cross-site_request_forgery).
+ - [Roadmap](https://github.com/pirate/ArchiveBox/wiki/Roadmap)
+ - [Changelog](https://github.com/pirate/ArchiveBox/wiki/Changelog)
+ - [Donations](https://github.com/pirate/ArchiveBox/wiki/Donations)
+ - [Web Archiving Community](https://github.com/pirate/ArchiveBox/wiki/Web-Archiving-Community)
 
-It might also be prudent to blacklist your archive in your `robots.txt` so that search engines dont index
-the content on your domain.
 
-## TODO
+# Background & Motivation
 
- - body text extraction using [fathom](https://hacks.mozilla.org/2017/04/fathom-a-framework-for-understanding-web-pages/)
- - auto-tagging based on important extracted words
- - audio & video archiving with `youtube-dl`
- - full-text indexing with elasticsearch
- - video closed-caption downloading for full-text indexing video content
- - automatic text summaries of article with summarization library
- - feature image extraction
- - http support (from my https-only domain)
- - try getting dead links from archive.org (https://github.com/hartator/wayback-machine-downloader)
+Vast treasure troves of knowledge are lost every day on the internet to link rot.  As a society, we have an imperative
+to preserve some important parts of that treasure, just like we preserve our books, paintings, and music in physical libraries long after the originals go out of print or fade into obscurity.
 
-## Links
+Whether it's to resist censorship by saving articles before they get taken down or editied, or
+just to save a collection of early 2010's flash games you love to play, having the tools to 
+archive internet content enables to you save the stuff you care most about before it dissapears.
 
- - [Hacker News Discussion](https://news.ycombinator.com/item?id=14272133)
- - https://wallabag.org + https://github.com/wallabag/wallabag
- - https://webrecorder.io/
- - https://github.com/ikreymer/webarchiveplayer#auto-load-warcs
+The balance between the permanence and ephemeral nature of content on the internet is part of what makes it beautiful. 
+I don't think everything should be preserved in an automated fashion, making all content permanent and never removable, but I do think people should be able to decide for themselves and effectively archive specific content that they care about.
+
+The aim of ArchiveBox is to go beyond what the Wayback Machine and other public archiving services can do, by adding a headless browser to replay sessions accurately, and by automatically extracting all the content in multiple redundant formats that will survive being passed down to historians and archivists through many generations.
+
+*Read more:*
+
+- Learn why archiving the internet is important by reading the "[On the Importance of Web Archiving](https://parameters.ssrc.org/2018/09/on-the-importance-of-web-archiving/)" blog post.
+- Discover the web archiving community on the [community](https://github.com/pirate/ArchiveBox/wiki/Web-Archiving-Community) wiki page.
+- Find other archving projects on Github using the [awesome-web-archiving](https://github.com/iipc/awesome-web-archiving) list.
+- Or reach out to me for questions and comments via [@theSquashSH](https://twitter.com/thesquashSH) on Twitter.
+
+To learn more about ArchiveBox's past history and future plans, check out the [roadmap](https://github.com/pirate/ArchiveBox/wiki/Roadmap) and [changelog](https://github.com/pirate/ArchiveBox/wiki/Changelog).
+
+# Screenshots
+
+<img src="https://i.imgur.com/viklZNG.png" width="75%" alt="Desktop index screenshot" align="top"><img src="https://i.imgur.com/mW2dITg.png" width="25%" alt="Mobile details page screenshot" align="top"><br/>
+<img src="https://i.imgur.com/wnpdAVM.jpg" width="100%" alt="Desktop details page Screenshot"/><br/>
+<img src="https://i.imgur.com/3tBL7PU.png" width="100%" alt="CLI Screenshot">
+
+---
+
+<div align="center">
+<br/><br/>
+<img src="https://raw.githubusercontent.com/Monadical-SAS/redux-time/HEAD/examples/static/jeremy.jpg" height="40px"/>
+<br/>
+<sub><i>This project is maintained mostly in my spare time with the help from generous contributors.</i></sub>
+<br/><br/>
+<a href="https://www.patreon.com/theSquashSH"><img src="https://img.shields.io/badge/Donate_to_support_development-via_Patreon-%23DD5D76.svg?style=flat"/></a>
+<br/>
+<br/>
+<a href="https://twitter.com/thesquashSH"><img src="https://img.shields.io/badge/Tweet-%40theSquashSH-blue.svg?style=flat"/></a>
+<a href="https://github.com/pirate/ArchiveBox"><img src="https://img.shields.io/github/stars/pirate/ArchiveBox.svg?style=flat&label=Star+on+Github"/></a>
+</div>
