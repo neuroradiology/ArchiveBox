@@ -1,0 +1,19 @@
+{
+  "name": "archivebox",
+  "version": "0.4.21",
+  "description": "ArchiveBox: The self-hosted internet archive",
+  "author": "Nick Sweeting <archivebox-npm@sweeting.me>",
+  "license": "MIT",
+  "scripts": {
+    "archivebox": "./bin/archive"
+  },
+  "bin": {
+    "archivebox-node": "./bin/archive",
+    "single-file": "./node_modules/.bin/single-file",
+    "readability-extractor": "./node_modules/.bin/readability-extractor"
+  },
+  "dependencies": {
+    "readability-extractor": "git+https://github.com/pirate/readability-extractor.git",
+    "single-file": "git+https://github.com/gildas-lormeau/SingleFile.git"
+  }
+}

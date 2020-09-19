@@ -1,72 +1,107 @@
-# This Dockerfile for ArchiveBox installs the following in a container:
-#     - curl, wget, python3, youtube-dl, google-chrome-unstable
-#     - ArchiveBox
+# This is the Dockerfile for ArchiveBox, it bundles the following dependencies:
+#     python3, ArchiveBox, curl, wget, git, chromium, youtube-dl, single-file
 # Usage:
-#     docker build github.com/pirate/ArchiveBox -t archivebox
-#     echo 'https://example.com' | docker run -i --mount type=bind,source=./data,target=/data archivebox /bin/archive
-#     docker run --mount type=bind,source=./data,target=/data archivebox /bin/archive 'https://example.com/some/rss/feed.xml'
-# Documentation:
-#     https://github.com/pirate/ArchiveBox/wiki/Docker#docker
+#     docker build . -t archivebox --no-cache
+#     docker run -v "$PWD/data":/data archivebox init
+#     docker run -v "$PWD/data":/data archivebox add 'https://example.com'
+#     docker run -v "$PWD/data":/data -it archivebox manage createsuperuser
+#     docker run -v "$PWD/data":/data -p 8000:8000 archivebox server
 
-FROM node:11-slim
-LABEL maintainer="Nick Sweeting <archivebox-git@sweeting.me>"
+FROM python:3.8-slim-buster
 
-RUN apt-get update \
-    && apt-get install -yq --no-install-recommends \
-        git wget curl youtube-dl gnupg2 libgconf-2-4 python3 python3-pip \
-    && rm -rf /var/lib/apt/lists/*
+LABEL name="archivebox" \
+    maintainer="Nick Sweeting <archivebox-docker@sweeting.me>" \
+    description="All-in-one personal internet archiving container" \
+    homepage="https://github.com/pirate/ArchiveBox" \
+    documentation="https://github.com/pirate/ArchiveBox/wiki/Docker#docker"
 
-# Install latest chrome package and fonts to support major charsets (Chinese, Japanese, Arabic, Hebrew, Thai and a few others)
-RUN apt-get update && apt-get install -y wget --no-install-recommends \
-    && wget -q -O - https://dl-ssl.google.com/linux/linux_signing_key.pub | apt-key add - \
-    && sh -c 'echo "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main" >> /etc/apt/sources.list.d/google.list' \
-    && apt-get update \
-    && apt-get install -y google-chrome-unstable fonts-ipafont-gothic fonts-wqy-zenhei fonts-thai-tlwg fonts-kacst ttf-freefont \
-      --no-install-recommends \
-    && rm -rf /var/lib/apt/lists/* \
-    && rm -rf /src/*.deb
-
-# It's a good idea to use dumb-init to help prevent zombie chrome processes.
-ADD https://github.com/Yelp/dumb-init/releases/download/v1.2.0/dumb-init_1.2.0_amd64 /usr/local/bin/dumb-init
-RUN chmod +x /usr/local/bin/dumb-init
-
-# Uncomment to skip the chromium download when installing puppeteer. If you do,
-# you'll need to launch puppeteer with:
-#     browser.launch({executablePath: 'google-chrome-unstable'})
-ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD true
-
-# Install puppeteer so it's available in the container.
-RUN npm i puppeteer
-
-# Add user so we don't need --no-sandbox.
-RUN groupadd -r pptruser && useradd -r -g pptruser -G audio,video pptruser \
-    && mkdir -p /home/pptruser/Downloads \
-    && chown -R pptruser:pptruser /home/pptruser \
-    && chown -R pptruser:pptruser /node_modules
-
-# Install the ArchiveBox repository and pip requirements
-RUN git clone https://github.com/pirate/ArchiveBox /home/pptruser/app \
-    && mkdir -p /data \
-    && chown -R pptruser:pptruser /data \
-    && ln -s /data /home/pptruser/app/archivebox/output \
-    && ln -s /home/pptruser/app/bin/* /bin/ \
-    && ln -s /home/pptruser/app/bin/archivebox /bin/archive \
-    && chown -R pptruser:pptruser /home/pptruser/app/archivebox
-    # && pip3 install -r /home/pptruser/app/archivebox/requirements.txt
-
-VOLUME /data
-
-ENV LANG=C.UTF-8 \
+# System-level base config
+ENV TZ=UTC \
     LANGUAGE=en_US:en \
     LC_ALL=C.UTF-8 \
+    LANG=C.UTF-8 \
     PYTHONIOENCODING=UTF-8 \
+    PYTHONUNBUFFERED=1 \
+    DEBIAN_FRONTEND=noninteractive \
+    APT_KEY_DONT_WARN_ON_DANGEROUS_USAGE=1
+
+# Application-level base config
+ENV CODE_DIR=/app \
+    VENV_PATH=/venv \
+    DATA_DIR=/data \
+    NODE_DIR=/node \
+    ARCHIVEBOX_USER="archivebox"
+
+# Create non-privileged user for archivebox and chrome
+RUN groupadd --system $ARCHIVEBOX_USER \
+    && useradd --system --create-home --gid $ARCHIVEBOX_USER --groups audio,video $ARCHIVEBOX_USER
+
+# Install system dependencies
+RUN apt-get update -qq \
+    && apt-get install -qq -y --no-install-recommends \
+        apt-transport-https ca-certificates gnupg2 zlib1g-dev \
+        dumb-init gosu cron unzip curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install apt dependencies
+RUN apt-get update -qq \
+    && apt-get install -qq -y --no-install-recommends \
+        wget curl chromium git ffmpeg youtube-dl \
+        fontconfig fonts-ipafont-gothic fonts-wqy-zenhei fonts-thai-tlwg fonts-kacst fonts-symbola fonts-noto fonts-freefont-ttf \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Node environment
+RUN curl -s https://deb.nodesource.com/gpgkey/nodesource.gpg.key | apt-key add - \
+    && echo 'deb https://deb.nodesource.com/node_14.x buster main' >> /etc/apt/sources.list \
+    && apt-get update -qq \
+    && apt-get install -qq -y --no-install-recommends \
+        nodejs \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Node dependencies
+WORKDIR "$NODE_DIR"
+ENV PATH="${PATH}:$NODE_DIR/node_modules/.bin" \
+    npm_config_loglevel=error
+RUN npm install -g npm
+ADD ./package.json ./package.json
+ADD ./package-lock.json ./package-lock.json
+RUN npm ci
+
+# Install Python dependencies
+WORKDIR "$CODE_DIR"
+ENV PATH="${PATH}:$VENV_PATH/bin"
+RUN python -m venv --clear --symlinks "$VENV_PATH" \
+    && pip install --upgrade --quiet pip setuptools
+ADD ./archivebox.egg-info/requires.txt "$CODE_DIR/archivebox.egg-info/requires.txt"
+RUN apt-get update -qq \
+    && apt-get install -qq -y --no-install-recommends \
+        build-essential python-dev python3-dev \
+    && grep -B 1000 -E '^$' "$CODE_DIR/archivebox.egg-info/requires.txt" | pip install --quiet -r /dev/stdin \
+    && apt-get purge -y build-essential python-dev python3-dev \
+    && apt-get autoremove -y \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install ArchiveBox Python package
+WORKDIR "$CODE_DIR"
+ADD . "$CODE_DIR"
+RUN pip install -e .
+
+# Setup ArchiveBox runtime config
+WORKDIR "$DATA_DIR"
+ENV IN_DOCKER=True \
     CHROME_SANDBOX=False \
-    CHROME_BINARY=google-chrome-unstable \
-    OUTPUT_DIR=/data
+    CHROME_BINARY="chromium" \
+    USE_SINGLEFILE=True \
+    SINGLEFILE_BINARY="$NODE_DIR/node_modules/.bin/single-file" \
+    USE_READABILITY=True \
+    READABILITY_BINARY="$NODE_DIR/node_modules/.bin/readability-extractor"
 
-# Run everything from here on out as non-privileged user
-USER pptruser
-WORKDIR /home/pptruser/app
+# Print version for nice docker finish summary
+RUN archivebox version
 
-ENTRYPOINT ["dumb-init", "--"]
-CMD ["/bin/archive"]
+# Open up the interfaces to the outside world
+VOLUME "$DATA_DIR"
+EXPOSE 8000
+
+ENTRYPOINT ["dumb-init", "--", "/app/bin/docker_entrypoint.sh"]
+CMD ["archivebox", "server", "0.0.0.0:8000"]
